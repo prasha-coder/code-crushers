@@ -5,6 +5,7 @@ from app.core.security import hash_password, verify_password
 from app.auth.jwt import create_access_token
 from app.db.session import get_db
 from app.db.models import User
+from app.auth.schemas import UserLogin
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -27,7 +28,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     return {"message": "User registered successfully"}
 
 @router.post("/login", response_model=TokenResponse)
-def login(user: UserCreate, db: Session = Depends(get_db)):
+def login(user: UserLogin, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.email == user.email).first()
 
     if not db_user or not verify_password(user.password, db_user.hashed_password):

@@ -5,5 +5,9 @@ class UserCreate(BaseModel):
     password: str
     role: str
 
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
 class TokenResponse(BaseModel):
     access_token: str
