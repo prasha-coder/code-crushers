@@ -1,6 +1,10 @@
 from fastapi import FastAPI, Depends
 from app.auth.router import router as auth_router
 from app.auth.dependencies import get_current_user, require_admin
+from app.db.session import engine
+from app.db import models  # IMPORTANT
+
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Code Crushers Backend")
 

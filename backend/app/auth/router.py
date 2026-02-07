@@ -1,42 +1,40 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
 from app.auth.schemas import UserCreate, TokenResponse
 from app.core.security import hash_password, verify_password
 from app.auth.jwt import create_access_token
+from app.db.session import get_db
+from app.db.models import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# In-memory user store (temporary)
-fake_users = {}
-
 @router.post("/register")
-def register(user: UserCreate):
-    if user.email in fake_users:
+def register(user: UserCreate, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.email == user.email).first()
+    if existing_user:
         raise HTTPException(status_code=400, detail="User already exists")
 
-    # First registered user becomes admin (for demo)
-    role = "admin" if len(fake_users) == 0 else "user"
-
-    fake_users[user.email] = {
-        "password": hash_password(user.password),
-        "role": role
-    }
-
-    return {"message": f"User registered as {role}"}
-
-
-@router.post("/login", response_model=TokenResponse)
-def login(user: UserCreate):
-    stored_user = fake_users.get(user.email)
-
-    if not stored_user or not verify_password(
-        user.password,
-        stored_user["password"]
-    ):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    token = create_access_token(
-        subject=user.email,
-        role=stored_user["role"]
+    new_user = User(
+        email=user.email,
+        hashed_password=hash_password(user.password),
+        role=user.role
     )
 
-    return {"access_token": token}
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return {"message": "User registered successfully"}
+
+@router.post("/login", response_model=TokenResponse)
+def login(user: UserCreate, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.email == user.email).first()
+
+    if not db_user or not verify_password(user.password, db_user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    access_token = create_access_token(
+        data={"sub": db_user.email, "role": db_user.role}
+    )
+
+    return {"access_token": access_token}

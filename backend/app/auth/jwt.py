@@ -2,19 +2,18 @@ from datetime import datetime, timedelta
 from jose import jwt
 from app.core.config import settings
 
-def create_access_token(subject: str, role: str) -> str:
+def create_access_token(data: dict):
+    to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
-    payload = {
-        "sub": subject,
-        "role": role,
-        "exp": expire
-    }
+    to_encode.update({"exp": expire})
 
-    return jwt.encode(
-        payload,
+    encoded_jwt = jwt.encode(
+        to_encode,
         settings.SECRET_KEY,
         algorithm=settings.ALGORITHM
     )
+
+    return encoded_jwt
